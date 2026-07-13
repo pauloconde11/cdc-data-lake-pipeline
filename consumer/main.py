@@ -7,6 +7,8 @@ from datetime import datetime
 import json
 
 MAX_BUFFER_SIZE_BYTES = 2 * 1024  # 2 KB
+BRONZE_BUCKET = "cdc-clientes"
+BRONZE_PREFIX = "bronze/clientes"
 
 def get_event_size_bytes(event):
     event_json = json.dumps(event, ensure_ascii=False)
@@ -32,11 +34,13 @@ def main():
         buffer_size_bytes += event_size_bytes
 
         if buffer_size_bytes >= MAX_BUFFER_SIZE_BYTES:
-            output_path = parquet_file_name_builder("clientes", datetime.now())
+            timestamp = datetime.now()
+            output_path = parquet_file_name_builder("clientes", timestamp)
+            object_name = f"{BRONZE_PREFIX}/{timestamp.strftime('%Y-%m-%d')}/{output_path.split('/')[-1]}"
 
             write_parquet_file(buffer, output_path)
-            minio_upload(client, "cdc-clientes", output_path, f"bronze/clientes/{datetime.now().strftime('%Y-%m-%d')}/{output_path.split('/')[-1]}")
-            
+            minio_upload(client, BRONZE_BUCKET, output_path, object_name)
+
             buffer.clear()
             buffer_size_bytes = 0
 
